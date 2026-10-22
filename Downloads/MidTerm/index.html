@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shortest Path in an Undirected Graph (BFS)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --bg:#e9eef2; --surface:#f7fafc; --ink:#13203a; --muted:#51607a; --line:#b9c5d3;
+  --accent:#1f5f8b; --accent-ink:#fff; --edge:#9fb0c3; --tree:#1f5f8b; --path:#d9480f;
+  --node-l:36%; --node-ink:#fff; --err:#b42318;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1522; --surface:#161f31; --ink:#e6edf7; --muted:#97a6bf; --line:#2b3a54;
+    --accent:#6cb4e4; --accent-ink:#0b1220; --edge:#41536f; --tree:#6cb4e4; --path:#ff9a5c;
+    --node-l:58%; --node-ink:#0b1220; --err:#ff8a80; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1522; --surface:#161f31; --ink:#e6edf7; --muted:#97a6bf; --line:#2b3a54;
+  --accent:#6cb4e4; --accent-ink:#0b1220; --edge:#41536f; --tree:#6cb4e4; --path:#ff9a5c;
+  --node-l:58%; --node-ink:#0b1220; --err:#ff8a80; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1080px;margin:0 auto;padding:28px 18px 48px}
+h1{font-size:clamp(1.7rem,4.5vw,2.6rem);line-height:1.1;margin:0 0 8px;letter-spacing:-.02em}
+.lead{max-width:62ch;color:var(--muted);margin:0 0 24px}
+.grid{display:grid;gap:18px;grid-template-columns:1fr}
+@media (min-width:860px){.grid{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+h2{font-size:1rem;margin:0 0 10px}
+label{display:block;font-size:.9rem;color:var(--muted);margin:0 0 4px}
+input,textarea{width:100%;font:inherit;font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;font-size:.95rem;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+textarea{min-height:128px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+button{font:inherit;font-weight:700;cursor:pointer;border-radius:6px;padding:8px 14px;border:1px solid var(--accent);background:transparent;color:var(--accent)}
+button.primary{background:var(--accent);color:var(--accent-ink)}
+button:disabled{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:3px solid var(--path);outline-offset:2px}
+.err{color:var(--err);min-height:1.4em;margin:8px 0 0;font-size:.9rem}
+svg{display:block;width:100%;height:auto}
+.edge{stroke:var(--edge);stroke-width:2}
+.edge.tree{stroke:var(--tree);stroke-width:3.5}
+.edge.path{stroke:var(--path);stroke-width:5}
+.node{cursor:pointer}
+.node circle{fill:var(--surface);stroke:var(--edge);stroke-width:2;stroke-dasharray:4 3;transition:fill .3s}
+.node.seen circle{fill:hsl(var(--h) 55% var(--node-l));stroke:none;stroke-dasharray:none}
+.node text{font:600 15px "JetBrains Mono",monospace;fill:var(--ink);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.node.seen text{fill:var(--node-ink)}
+.node .ring{fill:none;stroke:var(--path);stroke-width:4;stroke-dasharray:none;opacity:0}
+.node.cur .ring{opacity:1}
+.dtag{font:600 12px "JetBrains Mono",monospace;fill:var(--muted);text-anchor:middle}
+.note{min-height:3em;margin:0 0 10px}
+.queue{display:flex;flex-wrap:wrap;gap:6px;min-height:34px;align-items:center;font-family:"JetBrains Mono",monospace}
+.chip{border:1px solid var(--accent);border-radius:6px;padding:2px 9px;font-weight:600}
+.dist{display:flex;flex-wrap:wrap;gap:6px;font-family:"JetBrains Mono",monospace}
+.cell{border:1px solid var(--line);border-radius:6px;min-width:52px;padding:4px 8px;text-align:center}
+.cell small{display:block;color:var(--muted);font-size:.75rem}
+.cell b{font-size:1.05rem}
+.stack>*+*{margin-top:18px}
+details pre{overflow-x:auto;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:12px;font:.85rem/1.5 "JetBrains Mono",monospace;margin:10px 0 0}
+summary{cursor:pointer;font-weight:700}
+.small{color:var(--muted);font-size:.9rem;margin:8px 0 0}
+@media (prefers-reduced-motion:reduce){.node circle{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Shortest path in an undirected graph</h1>
+  <p class="lead">Every edge has length 1, so breadth-first search finds the shortest distance from the source to every vertex. Edit the graph, then step through the search and watch the queue.</p>
+
+  <div class="grid">
+    <div class="stack">
+      <div class="card">
+        <svg id="svg" viewBox="0 0 600 480" role="img" aria-label="Graph with BFS distances"></svg>
+        <p class="small">Select a vertex to highlight its shortest path from the source.</p>
+        <p id="pathout" class="small" aria-live="polite"></p>
+      </div>
+      <div class="card">
+        <h2>Distance from source</h2>
+        <div id="dist" class="dist"></div>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div class="card">
+        <h2>Graph input</h2>
+        <div class="row">
+          <div><label for="n">Vertices</label><input id="n" type="number" min="1" max="24" value="5"></div>
+          <div><label for="s">Source vertex</label><input id="s" type="number" min="0" value="0"></div>
+        </div>
+        <label for="edges">Edges, one pair per line (vertices are numbered from 0)</label>
+        <textarea id="edges" spellcheck="false">0 1
+1 4
+4 3
+3 2
+2 0
+2 1</textarea>
+        <p id="err" class="err" role="alert"></p>
+      </div>
+
+      <div class="card">
+        <h2>BFS run</h2>
+        <p id="note" class="note" aria-live="polite"></p>
+        <label>Queue (front on the left)</label>
+        <div id="queue" class="queue"></div>
+        <div class="btns">
+          <button id="step" class="primary">Step</button>
+          <button id="play">Play</button>
+          <button id="finish">Finish</button>
+          <button id="reset">Reset</button>
+        </div>
+      </div>
+
+      <details class="card">
+        <summary>C++ function this page follows</summary>
+<pre>vector&lt;int&gt; sp_bfs(int s, int n, vector&lt;int&gt; adj[]) {
+  queue&lt;int&gt; q;
+  q.push(s);
+  vector&lt;int&gt; dist(n, INT_MAX);
+  dist[s] = 0;
+  while (!q.empty()) {
+    int x = q.front();
+    q.pop();
+    for (auto it : adj[x]) {
+      int d = dist[x] + 1;
+      if (d &lt; dist[it]) {
+        dist[it] = d;
+        q.push(it);
+      }
+    }
+  }
+  return dist;
+}</pre>
+        <p class="small">Time O(V + E), space O(V). Vertices that are never reached keep the value INF.</p>
+      </details>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var G = null, steps = [], idx = 0, timer = null, sel = null;
+
+  function fail(msg){ $('err').textContent = msg; return null; }
+
+  function parse(){
+    $('err').textContent = '';
+    var n = parseInt($('n').value, 10), s = parseInt($('s').value, 10);
+    if (!(n >= 1 && n <= 24)) return fail('Vertices must be a whole number from 1 to 24.');
+    if (!(s >= 0 && s < n)) return fail('Source must be a vertex from 0 to ' + (n - 1) + '.');
+    var lines = $('edges').value.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+    var edges = [];
+    for (var i = 0; i < lines.length; i++) {
+      var p = lines[i].split(/[\s,]+/).map(Number);
+      if (p.length !== 2 || p.some(function(x){ return !Number.isInteger(x) || x < 0 || x >= n; }))
+        return fail('Line “' + lines[i] + '” needs two vertex numbers between 0 and ' + (n - 1) + '.');
+      edges.push(p);
+    }
+    return { n: n, s: s, edges: edges };
+  }
+
+  function build(g){
+    var adj = [], i;
+    for (i = 0; i < g.n; i++) adj.push([]);
+    g.edges.forEach(function(e){ adj[e[0]].push(e[1]); adj[e[1]].push(e[0]); });
+    var dist = [], par = [];
+    for (i = 0; i < g.n; i++) { dist.push(Infinity); par.push(-1); }
+    dist[g.s] = 0;
+    var q = [g.s];
+    var out = [{ cur: -1, q: q.slice(), dist: dist.slice(), par: par.slice(),
+      note: 'Start: dist[' + g.s + '] = 0 and vertex ' + g.s + ' goes into the queue.' }];
+    while (q.length) {
+      var x = q.shift(), found = [];
+      adj[x].forEach(function(it){
+        var d = dist[x] + 1;
+        if (d < dist[it]) { dist[it] = d; par[it] = x; q.push(it); found.push(it); }
+      });
+      out.push({ cur: x, q: q.slice(), dist: dist.slice(), par: par.slice(),
+        note: 'Pop vertex ' + x + '. ' + (found.length
+          ? 'It reaches ' + found.join(', ') + ' at distance ' + (dist[x] + 1) + ', so they join the queue.'
+          : 'Every neighbour already has a shorter or equal distance, so nothing is added.') });
+    }
+    return out;
+  }
+
+  function pos(i, n){
+    if (n === 1) return [300, 240];
+    var a = -Math.PI / 2 + 2 * Math.PI * i / n;
+    return [300 + 190 * Math.cos(a), 240 + 190 * Math.sin(a)];
+  }
+
+  function pathTo(v, st){
+    if (sel === null || st.dist[v] === Infinity) return [];
+    var p = [], c = v;
+    while (c !== -1) { p.unshift(c); c = st.par[c]; }
+    return p;
+  }
+
+  function render(){
+    var st = steps[idx], g = G, i, html = '';
+    var path = sel === null ? [] : pathTo(sel, st);
+    var onPath = {};
+    for (i = 0; i + 1 < path.length; i++) onPath[Math.min(path[i], path[i+1]) + '-' + Math.max(path[i], path[i+1])] = 1;
+
+    g.edges.forEach(function(e){
+      if (e[0] === e[1]) return;
+      var a = pos(e[0], g.n), b = pos(e[1], g.n);
+      var key = Math.min(e[0], e[1]) + '-' + Math.max(e[0], e[1]);
+      var tree = st.par[e[1]] === e[0] || st.par[e[0]] === e[1];
+      var cls = onPath[key] ? 'edge path' : (tree ? 'edge tree' : 'edge');
+      html += '<line class="' + cls + '" x1="' + a[0].toFixed(1) + '" y1="' + a[1].toFixed(1) + '" x2="' + b[0].toFixed(1) + '" y2="' + b[1].toFixed(1) + '"/>';
+    });
+    for (i = 0; i < g.n; i++) {
+      var p = pos(i, g.n), d = st.dist[i], seen = d !== Infinity;
+      var cls2 = 'node' + (seen ? ' seen' : '') + (st.cur === i ? ' cur' : '');
+      html += '<g class="' + cls2 + '" data-v="' + i + '" style="--h:' + (176 + (seen ? d : 0) * 34) + '" tabindex="0" role="button" aria-label="Vertex ' + i + ', distance ' + (seen ? d : 'infinite') + '">' +
+        '<circle class="ring" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="27"/>' +
+        '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="22"/>' +
+        '<text x="' + p[0].toFixed(1) + '" y="' + p[1].toFixed(1) + '">' + i + '</text>' +
+        '<text class="dtag" x="' + p[0].toFixed(1) + '" y="' + (p[1] + 40).toFixed(1) + '" style="fill:var(--muted)">' + (seen ? 'd=' + d : 'INF') + '</text></g>';
+    }
+    $('svg').innerHTML = html;
+
+    $('note').textContent = st.note + (idx === steps.length - 1 ? ' The queue is empty, so the search is done.' : '');
+    $('queue').innerHTML = st.q.length ? st.q.map(function(v){ return '<span class="chip">' + v + '</span>'; }).join('') : '<span style="color:var(--muted)">empty</span>';
+    var dh = '';
+    for (i = 0; i < g.n; i++) dh += '<div class="cell"><small>vertex ' + i + '</small><b>' + (st.dist[i] === Infinity ? 'INF' : st.dist[i]) + '</b></div>';
+    $('dist').innerHTML = dh;
+
+    if (sel === null) $('pathout').textContent = '';
+    else if (!path.length) $('pathout').textContent = 'Vertex ' + sel + ' has not been reached yet.';
+    else $('pathout').textContent = 'Path from ' + g.s + ' to ' + sel + ': ' + path.join(' → ') + ' (length ' + (path.length - 1) + ')';
+
+    var end = idx >= steps.length - 1;
+    $('step').disabled = end; $('finish').disabled = end; $('play').disabled = end && !timer;
+  }
+
+  function stop(){ if (timer) { clearInterval(timer); timer = null; } $('play').textContent = 'Play'; }
+
+  function load(){
+    stop();
+    var g = parse();
+    if (!g) return;
+    G = g; steps = build(g); idx = 0; sel = null;
+    render();
+  }
+
+  $('step').onclick = function(){ if (idx < steps.length - 1) { idx++; render(); } };
+  $('finish').onclick = function(){ stop(); idx = steps.length - 1; render(); };
+  $('reset').onclick = function(){ stop(); idx = 0; render(); };
+  $('play').onclick = function(){
+    if (timer) { stop(); render(); return; }
+    if (idx >= steps.length - 1) idx = 0;
+    $('play').textContent = 'Pause';
+    timer = setInterval(function(){
+      if (idx < steps.length - 1) { idx++; render(); }
+      if (idx >= steps.length - 1) { stop(); render(); }
+    }, 900);
+    render();
+  };
+  ['n', 's', 'edges'].forEach(function(id){ $(id).addEventListener('input', load); });
+
+  function pick(e){
+    var el = e.target.closest ? e.target.closest('.node') : null;
+    if (!el) return;
+    var v = parseInt(el.getAttribute('data-v'), 10);
+    sel = (sel === v) ? null : v;
+    render();
+  }
+  $('svg').addEventListener('click', pick);
+  $('svg').addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(e); } });
+
+  load();
+})();
+</script>
+</body>
+</html>
